@@ -65,7 +65,6 @@ namespace TwitchBot.Services
                 //Respond with PONG :tmi.twitch.tv
                 if (line.StartsWith("PING"))
                 {
-                    Console.WriteLine("PONG");
                     await streamWriter.WriteLineAsync($"PONG {split[1]}");
                 }
 

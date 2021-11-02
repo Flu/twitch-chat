@@ -18,11 +18,10 @@ namespace TwitchBot
             _twitchService = twitchService;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
-            _twitchService.StartListening("wardell");
-            return Task.CompletedTask;
+            await _twitchService.StartListening("hiko");
         }
 
         public string ColoredBoldName(string name)
@@ -43,10 +42,9 @@ namespace TwitchBot
             Console.WriteLine($"{ColoredBoldName(args.User)}: {args.Message}");
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             // Maybe do some clean-up if needed
-            return Task.CompletedTask;
         }
     }
 }
