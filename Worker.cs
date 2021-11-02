@@ -1,11 +1,10 @@
+using TwitchBot.Services;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Text;
+using System.Security.Cryptography;
 using System;
 using Microsoft.Extensions.Hosting;
-using System.Threading.Tasks;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using TwitchBot.Models;
-using TwitchBot.Services;
 
 namespace TwitchBot
 {
@@ -21,7 +20,7 @@ namespace TwitchBot
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
-            await _twitchService.StartListening("hiko");
+            await _twitchService.StartListening("hiko", cancellationToken);
         }
 
         public string ColoredBoldName(string name)
@@ -37,9 +36,17 @@ namespace TwitchBot
             }
         }
 
+        public string HighlightReference(string messageBody, string selfUsername, string sender) {
+            if (messageBody.Contains(selfUsername) || sender == selfUsername) {
+                return $"\x1b[47m\x1b[30m{messageBody}\x1b[40m";
+            } else {
+                return messageBody;
+            }
+        }
+
         public void OnMessageCallback(object sender, TwitchMessageEventArgs args)
         {
-            Console.WriteLine($"{ColoredBoldName(args.User)}: {args.Message}");
+            Console.WriteLine($"{ColoredBoldName(args.Sender)}: {HighlightReference(args.Message, args.User, args.Sender)}");
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)

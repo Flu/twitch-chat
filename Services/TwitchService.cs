@@ -1,10 +1,12 @@
-using System;
-using System.IO;
-using System.Net.Sockets;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
 using TwitchBot.Models;
 using System.Threading.Tasks;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
+using System.Threading;
+using System.Net.Sockets;
+using System.Net.Security;
+using System.IO;
+using System;
 
 namespace TwitchBot.Services
 {
@@ -12,16 +14,18 @@ namespace TwitchBot.Services
     {
         public string Message { get; set; }
         public string User { get; set; }
+        public string Sender { get; set; }
     }
 
     public class TwitchService : ITwitchService
     {
+        private readonly ILogger<TwitchService> _logger;
         private readonly TwitchSettings _settings;
-
         public event TwitchChatEventHandler OnMessage;
 
-        public TwitchService(TwitchSettings settings)
+        public TwitchService(ILogger<TwitchService> logger, TwitchSettings settings)
         {
+            _logger = logger;
             _settings = settings;
         }
 
@@ -30,7 +34,7 @@ namespace TwitchBot.Services
             return sslPolicyErrors == SslPolicyErrors.None;
         }
 
-        public async Task StartListening(string channelName)
+        public async Task StartListening(string channelName, CancellationToken cancellationToken)
         {
             var tcp = new TcpClient();
 
@@ -38,11 +42,11 @@ namespace TwitchBot.Services
 
             SslStream sslStream;
 
-                sslStream = new SslStream(
-                    tcp.GetStream(),
-                    false,
-                    ValidateServerCertificate,
-                    null);
+            sslStream = new SslStream(
+                tcp.GetStream(),
+                false,
+                ValidateServerCertificate,
+                null);
 
             await sslStream.AuthenticateAsClientAsync(_settings.Url);
             var streamReader = new StreamReader(_settings.Ssl ? sslStream : tcp.GetStream());
@@ -56,7 +60,10 @@ namespace TwitchBot.Services
             await streamWriter.WriteLineAsync($"NICK {_settings.Credentials.Username}");
             await streamWriter.WriteLineAsync($"JOIN #{channelName}");
 
-            while (true)
+            _logger.LogInformation($"Authentication succesful to {_settings.Url}:{_settings.Port}");
+            _logger.LogInformation($"Joined channel {channelName}");
+
+            while (!cancellationToken.IsCancellationRequested)
             {
                 string line = await streamReader.ReadLineAsync();
                 string[] split = line.Split(" ");
@@ -81,14 +88,21 @@ namespace TwitchBot.Services
                     int secondColonPosition = line.IndexOf(':', 1); //the 1 here is what skips the first character
                     string message = line.Substring(secondColonPosition + 1); //Everything past the second colon
                     string channel = split[2].TrimStart('#');
+                    _logger.LogInformation($"{username}@{channel}:{message}");
 
                     OnMessage.Invoke(this, new TwitchMessageEventArgs
                     {
                         Message = message,
-                        User = username
+                        User = _settings.Credentials.Username,
+                        Sender = username
                     });
                 }
             }
+
+            streamReader.Close();
+            streamWriter.Close();
+
+            _logger.LogInformation("Closed connection!");
         }
     }
 }

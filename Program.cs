@@ -1,10 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+﻿using TwitchBot.Services;
 using TwitchBot.Models;
-using Microsoft.Extensions.DependencyInjection;
+using System.Threading.Tasks;
+using System;
 using Microsoft.Extensions.Hosting;
-using TwitchBot.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace TwitchBot
 {
@@ -20,6 +21,10 @@ namespace TwitchBot
 
         static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .ConfigureLogging(logging =>
+                {
+                    logging.ClearProviders();
+                })
                 .ConfigureAppConfiguration((hostingContext, configuration) =>
                 {
                     configuration.Sources.Clear();
