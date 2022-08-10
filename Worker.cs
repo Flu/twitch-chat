@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace TwitchBot
 {
-    public class Worker : IHostedService
+    public class Worker : BackgroundService
     {
         private readonly ITwitchService _twitchService;
 
@@ -17,15 +17,15 @@ namespace TwitchBot
             _twitchService = twitchService;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
-            await _twitchService.StartListening("hiko", cancellationToken);
+            await _twitchService.StartListening("westworld", cancellationToken);
         }
 
         public string ColoredBoldName(string name)
         {
-            using (var sha = new SHA256Managed())
+            using (SHA256 sha = SHA256.Create())
             {
                 byte[] textBytes = Encoding.UTF8.GetBytes(name);
                 byte[] hashBytes = sha.ComputeHash(textBytes);
@@ -36,22 +36,25 @@ namespace TwitchBot
             }
         }
 
-        public string HighlightReference(string messageBody, string selfUsername, string sender) {
-            if (messageBody.Contains(selfUsername) || sender == selfUsername) {
-                return $"\x1b[47m\x1b[30m{messageBody}\x1b[40m";
-            } else {
+        public string HighlightReference(string messageBody, string selfUsername, string sender)
+        {
+            if (messageBody.Contains(selfUsername) || sender == selfUsername)
+            {
+                return $"\x1b[47m\x1b[30m{messageBody}\x1b[0m";
+            }
+            else
+            {
                 return messageBody;
             }
         }
 
-        public void OnMessageCallback(object sender, TwitchMessageEventArgs args)
+        public async Task OnMessageCallback(object sender, TwitchMessageEventArgs args)
         {
             Console.WriteLine($"{ColoredBoldName(args.Sender)}: {HighlightReference(args.Message, args.User, args.Sender)}");
-        }
-
-        public async Task StopAsync(CancellationToken cancellationToken)
-        {
-            // Maybe do some clean-up if needed
+            if (args.Message.ToLower().StartsWith("orangeflu: analysis"))
+            {
+                await _twitchService.SendMessage("[DBG] Analysis mode activated, awaiting prompt");
+            }
         }
     }
 }

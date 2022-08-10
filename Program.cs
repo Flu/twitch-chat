@@ -15,15 +15,16 @@ namespace TwitchBot
         {
             var host = CreateHostBuilder(args);
 
-            await host.RunConsoleAsync();
+            await host.RunAsync();
             return Environment.ExitCode;
         }
 
-        static IHostBuilder CreateHostBuilder(string[] args) =>
+        static IHost CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureLogging(logging =>
                 {
                     logging.ClearProviders();
+                    logging.AddConsole();
                 })
                 .ConfigureAppConfiguration((hostingContext, configuration) =>
                 {
@@ -49,6 +50,6 @@ namespace TwitchBot
                         .GetSection(nameof(TwitchSettings))
                         .Get<TwitchSettings>();
                     services.AddSingleton<TwitchSettings>(settings);
-                });
+                }).Build();
     }
 }

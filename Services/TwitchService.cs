@@ -21,6 +21,9 @@ namespace TwitchBot.Services
     {
         private readonly ILogger<TwitchService> _logger;
         private readonly TwitchSettings _settings;
+        private string _channelName;
+        private StreamWriter _streamWriter;
+        private StreamReader _streamReader;
         public event TwitchChatEventHandler OnMessage;
 
         public TwitchService(ILogger<TwitchService> logger, TwitchSettings settings)
@@ -34,7 +37,13 @@ namespace TwitchBot.Services
             return sslPolicyErrors == SslPolicyErrors.None;
         }
 
-        public async Task StartListening(string channelName, CancellationToken cancellationToken)
+        public async Task SendMessage(string message)
+        {
+            Thread.Sleep(124);
+            await _streamWriter.WriteLineAsync($"PRIVMSG #{_channelName} :{message}");
+        }
+
+        private async Task EstablishServerConnection()
         {
             var tcp = new TcpClient();
 
@@ -49,30 +58,57 @@ namespace TwitchBot.Services
                 null);
 
             await sslStream.AuthenticateAsClientAsync(_settings.Url);
-            var streamReader = new StreamReader(_settings.Ssl ? sslStream : tcp.GetStream());
-            var streamWriter = new StreamWriter(_settings.Ssl ? sslStream : tcp.GetStream())
+
+            _streamReader = new StreamReader(_settings.Ssl ? sslStream : tcp.GetStream());
+            _streamWriter = new StreamWriter(_settings.Ssl ? sslStream : tcp.GetStream())
             {
                 NewLine = "\r\n",
                 AutoFlush = true
             };
 
-            await streamWriter.WriteLineAsync($"PASS {_settings.Credentials.Secret}");
-            await streamWriter.WriteLineAsync($"NICK {_settings.Credentials.Username}");
-            await streamWriter.WriteLineAsync($"JOIN #{channelName}");
+            await Login();
+        }
 
+        private async Task Login()
+        {
+            await _streamWriter.WriteLineAsync($"NICK {_settings.Credentials.Username}");
+
+            await _streamReader.ReadLineAsync();
+            await _streamReader.ReadLineAsync();
+
+            // Get the ping :random_number
+            string ping_line = await _streamReader.ReadLineAsync();
+            string cookie = ping_line.Split(" ")[1];
+
+            // Respond back with pong :random_number
+            await _streamWriter.WriteLineAsync($"PONG {cookie}");
+            await _streamWriter.WriteLineAsync($"USER {_settings.Credentials.Username} {_settings.Credentials.Username} {_settings.Credentials.Username} :{_settings.Credentials.Username}");
+        }
+
+        public async Task StartListening(string channelName, CancellationToken cancellationToken)
+        {
+            await EstablishServerConnection();
             _logger.LogInformation($"Authentication succesful to {_settings.Url}:{_settings.Port}");
+
+            await _streamWriter.WriteLineAsync($"JOIN #{channelName}");
             _logger.LogInformation($"Joined channel {channelName}");
+
+            _channelName = channelName;
+
+            await SendMessage("[Analysis mode for host PK-69732074686973206E6F773F]");
+            await SendMessage($"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
+            await SendMessage("[DBG] Host ready");
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                string line = await streamReader.ReadLineAsync();
+                string line = await _streamReader.ReadLineAsync();
                 string[] split = line.Split(" ");
 
                 //PING :tmi.twitch.tv
                 //Respond with PONG :tmi.twitch.tv
                 if (line.StartsWith("PING"))
                 {
-                    await streamWriter.WriteLineAsync($"PONG {split[1]}");
+                    await _streamWriter.WriteLineAsync($"PONG {split[1]}");
                 }
 
                 // Parse messages within the channel
@@ -88,19 +124,20 @@ namespace TwitchBot.Services
                     int secondColonPosition = line.IndexOf(':', 1); //the 1 here is what skips the first character
                     string message = line.Substring(secondColonPosition + 1); //Everything past the second colon
                     string channel = split[2].TrimStart('#');
-                    _logger.LogInformation($"{username}@{channel}:{message}");
 
-                    OnMessage.Invoke(this, new TwitchMessageEventArgs
+                    await OnMessage.Invoke(this, new TwitchMessageEventArgs
                     {
                         Message = message,
                         User = _settings.Credentials.Username,
                         Sender = username
-                    });
+                    }); 
                 }
             }
 
-            streamReader.Close();
-            streamWriter.Close();
+            _streamReader.Close();
+            _streamWriter.Close();
+            _streamReader.Dispose();
+            _streamWriter.Dispose();
 
             _logger.LogInformation("Closed connection!");
         }
