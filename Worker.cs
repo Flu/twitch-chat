@@ -1,4 +1,6 @@
 using TwitchBot.Services;
+using TwitchBot.Models.Memory;
+using TwitchBot.Extensions;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Text;
@@ -13,18 +15,21 @@ namespace TwitchBot
     {
         private readonly ITwitchService _twitchService;
         private readonly ICommandService _commandService;
+        private readonly Memory _memory;
 
-        public Worker(ITwitchService twitchService, ICommandService commandService)
+        public Worker(ITwitchService twitchService, ICommandService commandService, Memory memory)
         {
+            var duration = (DateTime.Now - memory.LastOnline).ToReadableString();
             _twitchService = twitchService;
             _commandService = commandService;
+            _memory = memory;
         }
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
             _twitchService.OnConnected += OnConnectedCallback;
-            await _twitchService.StartListening("romanian", cancellationToken);
+            await _twitchService.StartListening("westworld", cancellationToken);
         }
 
         public string ColoredBoldName(string name)
@@ -68,22 +73,14 @@ namespace TwitchBot
             }
         }
 
-        public async Task OnConnectedCallback(object sender, EventArgs args) {
-            int trial_number = 0;
-            using (TextReader reader = File.OpenText("trial_number"))
-            {
-                trial_number = int.Parse(reader.ReadLine());
-            }
-            // Open file and increment by one
-            using (TextWriter writer = File.CreateText("trial_number"))
-            {
-                writer.WriteLine(trial_number + 1);
-            }
+        public async Task OnConnectedCallback(object sender, EventArgs args)
+        {
+            var duration = (DateTime.Now - _memory.LastOnline).ToReadableString();
 
-            await _twitchService.SendMessage("[Analysis mode for host PK-69732074686973206E6F773F]");
+            await _twitchService.SendMessage($"[Analysis mode for host {_memory.HostId}]");
             await _twitchService.SendMessage($"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
-            await _twitchService.SendMessage($"[DBG] Trial number {trial_number}");
-            await _twitchService.SendMessage("[DBG] Host ready");
+            await _twitchService.SendMessage($"[DBG] {duration} since the unit was last online");
+            await _twitchService.SendMessage($"[DBG] Trial number {_memory.TrialNumber}");
         }
     }
 }

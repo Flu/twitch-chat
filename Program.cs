@@ -1,5 +1,6 @@
 ﻿using TwitchBot.Services;
 using TwitchBot.Models;
+using TwitchBot.Models.Memory;
 using System.Threading.Tasks;
 using System;
 using Microsoft.Extensions.Hosting;
@@ -33,13 +34,18 @@ namespace TwitchBot
                     IHostEnvironment env = hostingContext.HostingEnvironment;
 
                     configuration
-                        .AddJsonFile("appsettings.json", true, true);
+                        .AddJsonFile("appsettings.json", true, true)
+                        .AddJsonFile("state.json", true, true);
 
                     IConfigurationRoot configurationRoot = configuration.Build();
 
-                    TwitchSettings options = new();
+                    TwitchSettings settings = new();
                     configurationRoot.GetSection(nameof(TwitchSettings))
-                                     .Bind(options);
+                                     .Bind(settings);
+                    
+                    Memory memory = new();
+                    configurationRoot.GetSection(nameof(Memory))
+                                     .Bind(memory);
                 })
                 .ConfigureServices((hostingContext, services) =>
                 {
@@ -47,10 +53,19 @@ namespace TwitchBot
                     services.AddSingleton<ICommandService, CommandService>();
                     services.AddHostedService<Worker>();
 
+                    // Add settings for IRC connection
                     var settings = hostingContext.Configuration
                         .GetSection(nameof(TwitchSettings))
                         .Get<TwitchSettings>();
+
                     services.AddSingleton<TwitchSettings>(settings);
+                    
+                    // Add memory information for persistent state
+                    var memory = hostingContext.Configuration
+                        .GetSection(nameof(Memory))
+                        .Get<Memory>();
+
+                    services.AddSingleton<Memory>(memory);
                 }).Build();
     }
 }
