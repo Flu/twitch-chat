@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
+    <PackageReference Include="Catalyst" Version="1.0.31087" />
+    <PackageReference Include="Catalyst.Models.English" Version="1.0.30952" />
   </ItemGroup>
 
     <ItemGroup>

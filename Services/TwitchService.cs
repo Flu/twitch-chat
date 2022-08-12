@@ -25,6 +25,7 @@ namespace TwitchBot.Services
         private StreamWriter _streamWriter;
         private StreamReader _streamReader;
         public event TwitchChatEventHandler OnMessage;
+        public event TwitchChatConnectedEventHandler OnConnected;
 
         public TwitchService(ILogger<TwitchService> logger, TwitchSettings settings)
         {
@@ -39,7 +40,6 @@ namespace TwitchBot.Services
 
         public async Task SendMessage(string message)
         {
-            Thread.Sleep(124);
             await _streamWriter.WriteLineAsync($"PRIVMSG #{_channelName} :{message}");
         }
 
@@ -92,12 +92,10 @@ namespace TwitchBot.Services
 
             await _streamWriter.WriteLineAsync($"JOIN #{channelName}");
             _logger.LogInformation($"Joined channel {channelName}");
-
             _channelName = channelName;
 
-            await SendMessage("[Analysis mode for host PK-69732074686973206E6F773F]");
-            await SendMessage($"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
-            await SendMessage("[DBG] Host ready");
+            // Notify the worker that we are connected and ready to send messages
+            await OnConnected.Invoke(this, null);
 
             while (!cancellationToken.IsCancellationRequested)
             {

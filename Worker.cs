@@ -4,6 +4,7 @@ using System.Threading;
 using System.Text;
 using System.Security.Cryptography;
 using System;
+using System.IO;
 using Microsoft.Extensions.Hosting;
 
 namespace TwitchBot
@@ -22,6 +23,7 @@ namespace TwitchBot
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
+            _twitchService.OnConnected += OnConnectedCallback;
             await _twitchService.StartListening("romanian", cancellationToken);
         }
 
@@ -40,7 +42,7 @@ namespace TwitchBot
 
         // check if user is mentioned
         private bool IsMentioned(string message, string selfUsername)
-        {   
+        {
             return message.Contains($"{selfUsername}");
         }
 
@@ -64,6 +66,24 @@ namespace TwitchBot
             {
                 await _twitchService.SendMessage(response);
             }
+        }
+
+        public async Task OnConnectedCallback(object sender, EventArgs args) {
+            int trial_number = 0;
+            using (TextReader reader = File.OpenText("trial_number"))
+            {
+                trial_number = int.Parse(reader.ReadLine());
+            }
+            // Open file and increment by one
+            using (TextWriter writer = File.CreateText("trial_number"))
+            {
+                writer.WriteLine(trial_number + 1);
+            }
+
+            await _twitchService.SendMessage("[Analysis mode for host PK-69732074686973206E6F773F]");
+            await _twitchService.SendMessage($"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
+            await _twitchService.SendMessage($"[DBG] Trial number {trial_number}");
+            await _twitchService.SendMessage("[DBG] Host ready");
         }
     }
 }
