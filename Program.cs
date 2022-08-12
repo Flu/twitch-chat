@@ -44,6 +44,7 @@ namespace TwitchBot
                 .ConfigureServices((hostingContext, services) =>
                 {
                     services.AddSingleton<ITwitchService, TwitchService>();
+                    services.AddSingleton<ICommandService, CommandService>();
                     services.AddHostedService<Worker>();
 
                     var settings = hostingContext.Configuration

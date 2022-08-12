@@ -130,7 +130,7 @@ namespace TwitchBot.Services
                         Message = message,
                         User = _settings.Credentials.Username,
                         Sender = username
-                    }); 
+                    });
                 }
             }
 

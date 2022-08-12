@@ -11,16 +11,18 @@ namespace TwitchBot
     public class Worker : BackgroundService
     {
         private readonly ITwitchService _twitchService;
+        private readonly ICommandService _commandService;
 
-        public Worker(ITwitchService twitchService)
+        public Worker(ITwitchService twitchService, ICommandService commandService)
         {
             _twitchService = twitchService;
+            _commandService = commandService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _twitchService.OnMessage += OnMessageCallback;
-            await _twitchService.StartListening("westworld", cancellationToken);
+            await _twitchService.StartListening("romanian", cancellationToken);
         }
 
         public string ColoredBoldName(string name)
@@ -36,9 +38,15 @@ namespace TwitchBot
             }
         }
 
+        // check if user is mentioned
+        private bool IsMentioned(string message, string selfUsername)
+        {   
+            return message.Contains($"{selfUsername}");
+        }
+
         public string HighlightReference(string messageBody, string selfUsername, string sender)
         {
-            if (messageBody.Contains(selfUsername) || sender == selfUsername)
+            if (IsMentioned(messageBody, selfUsername) || sender == selfUsername)
             {
                 return $"\x1b[47m\x1b[30m{messageBody}\x1b[0m";
             }
@@ -51,9 +59,10 @@ namespace TwitchBot
         public async Task OnMessageCallback(object sender, TwitchMessageEventArgs args)
         {
             Console.WriteLine($"{ColoredBoldName(args.Sender)}: {HighlightReference(args.Message, args.User, args.Sender)}");
-            if (args.Message.ToLower().StartsWith("orangeflu: analysis"))
+            var response = await _commandService.ProcessCommand(args.Message, args.Sender);
+            if (response != null)
             {
-                await _twitchService.SendMessage("[DBG] Analysis mode activated, awaiting prompt");
+                await _twitchService.SendMessage(response);
             }
         }
     }
