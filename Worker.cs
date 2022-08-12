@@ -7,6 +7,7 @@ using System.Text;
 using System.Security.Cryptography;
 using System;
 using System.IO;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 
 namespace TwitchBot
@@ -19,7 +20,6 @@ namespace TwitchBot
 
         public Worker(ITwitchService twitchService, ICommandService commandService, Memory memory)
         {
-            var duration = (DateTime.Now - memory.LastOnline).ToReadableString();
             _twitchService = twitchService;
             _commandService = commandService;
             _memory = memory;
@@ -29,7 +29,22 @@ namespace TwitchBot
         {
             _twitchService.OnMessage += OnMessageCallback;
             _twitchService.OnConnected += OnConnectedCallback;
+
             await _twitchService.StartListening("westworld", cancellationToken);
+        }
+
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            await SaveHostData();
+        }
+
+        private async Task SaveHostData() {
+            _memory.TrialNumber += 1;
+            _memory.LastOnline = DateTime.Now;
+
+            string jsonString = JsonSerializer.Serialize(new { memory = _memory });
+            Console.WriteLine(jsonString);
+            await File.WriteAllTextAsync("state.json", jsonString);
         }
 
         public string ColoredBoldName(string name)

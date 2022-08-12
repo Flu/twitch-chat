@@ -2,4 +2,4 @@ obj/*
 bin/*
 .vscode/*
 appsettings.json
-trial_number
+state.json

@@ -3,6 +3,8 @@ using TwitchBot.Models;
 using TwitchBot.Models.Memory;
 using System.Threading.Tasks;
 using System;
+using System.IO;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +19,7 @@ namespace TwitchBot
             var host = CreateHostBuilder(args);
 
             await host.RunAsync();
+            
             return Environment.ExitCode;
         }
 
