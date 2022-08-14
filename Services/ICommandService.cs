@@ -4,6 +4,6 @@ namespace TwitchBot.Services {
     public interface ICommandService {
         
         // Get a command and process it
-        Task<string> ProcessCommand(string command, string user);
+        Task<string> ProcessCommand(TwitchMessageEventArgs args);
     }
 }
