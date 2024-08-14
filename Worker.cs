@@ -30,7 +30,7 @@ namespace TwitchBot
             _twitchService.OnMessage += OnMessageCallback;
             _twitchService.OnConnected += OnConnectedCallback;
 
-            await _twitchService.StartListening("westworld", cancellationToken);
+            await _twitchService.StartListening(cancellationToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
@@ -81,21 +81,21 @@ namespace TwitchBot
         public async Task OnMessageCallback(object sender, TwitchMessageEventArgs args)
         {
             Console.WriteLine($"{ColoredBoldName(args.Sender)}: {HighlightReference(args.Message, args.User, args.Sender)}");
-            var response = await _commandService.ProcessCommand(args.Message, args.Sender);
+            var response = await _commandService.ProcessCommand(args);
             if (response != null)
             {
-                await _twitchService.SendMessage(response);
+                await _twitchService.SendMessage(args.Channel, response);
             }
         }
 
-        public async Task OnConnectedCallback(object sender, EventArgs args)
+        public async Task OnConnectedCallback(object sender, TwitchMessageEventArgs args)
         {
             var duration = (DateTime.Now - _memory.LastOnline).ToReadableString();
 
-            await _twitchService.SendMessage($"[Analysis mode for host {_memory.HostId}]");
-            await _twitchService.SendMessage($"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
-            await _twitchService.SendMessage($"[DBG] {duration} since the unit was last online");
-            await _twitchService.SendMessage($"[DBG] Trial number {_memory.TrialNumber}");
+            await _twitchService.SendMessage(args.Channel, $"[Analysis mode for host {_memory.HostId}]");
+            await _twitchService.SendMessage(args.Channel, $"[DBG] Current UNIX time: {DateTimeOffset.Now.ToUnixTimeSeconds()}");
+            await _twitchService.SendMessage(args.Channel, $"[DBG] {duration} since the unit was last online");
+            await _twitchService.SendMessage(args.Channel, $"[DBG] Trial number {_memory.TrialNumber}");
         }
     }
 }

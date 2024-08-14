@@ -15,13 +15,13 @@ namespace TwitchBot.Services
         public string Message { get; set; }
         public string User { get; set; }
         public string Sender { get; set; }
+        public string Channel { get; set; }
     }
 
     public class TwitchService : ITwitchService
     {
         private readonly ILogger<TwitchService> _logger;
         private readonly TwitchSettings _settings;
-        private string _channelName;
         private StreamWriter _streamWriter;
         private StreamReader _streamReader;
         public event TwitchChatEventHandler OnMessage;
@@ -38,9 +38,9 @@ namespace TwitchBot.Services
             return sslPolicyErrors == SslPolicyErrors.None;
         }
 
-        public async Task SendMessage(string message)
+        public async Task SendMessage(string channelName, string message)
         {
-            await _streamWriter.WriteLineAsync($"PRIVMSG #{_channelName} :{message}");
+            await _streamWriter.WriteLineAsync($"PRIVMSG {channelName} :{message}");
         }
 
         private async Task EstablishServerConnection()
@@ -85,17 +85,28 @@ namespace TwitchBot.Services
             await _streamWriter.WriteLineAsync($"USER {_settings.Credentials.Username} {_settings.Credentials.Username} {_settings.Credentials.Username} :{_settings.Credentials.Username}");
         }
 
-        public async Task StartListening(string channelName, CancellationToken cancellationToken)
+        public async Task StartListening(CancellationToken cancellationToken)
         {
             await EstablishServerConnection();
             _logger.LogInformation($"Authentication succesful to {_settings.Url}:{_settings.Port}");
 
-            await _streamWriter.WriteLineAsync($"JOIN #{channelName}");
-            _logger.LogInformation($"Joined channel {channelName}");
-            _channelName = channelName;
 
-            // Notify the worker that we are connected and ready to send messages
-            await OnConnected.Invoke(this, null);
+            // Join all channels
+            foreach (var channelName in _settings.Channels)
+            {
+                await _streamWriter.WriteLineAsync($"JOIN {channelName}");
+                _logger.LogInformation($"Joined channel {channelName}");
+
+              // Notify the worker that we are connected and ready to send messages
+              await OnConnected.Invoke(this, new TwitchMessageEventArgs
+              {
+                  Message = null,
+                  User = null,
+                  Sender = null,
+                  Channel = channelName
+              });
+            }
+
 
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -109,6 +120,8 @@ namespace TwitchBot.Services
                     await _streamWriter.WriteLineAsync($"PONG {split[1]}");
                 }
 
+                _logger.LogDebug(line);
+
                 // Parse messages within the channel
                 if (split.Length > 2 && split[1] == "PRIVMSG")
                 {
@@ -121,13 +134,14 @@ namespace TwitchBot.Services
                     //Skip the first character, the first colon, then find the next colon
                     int secondColonPosition = line.IndexOf(':', 1); //the 1 here is what skips the first character
                     string message = line.Substring(secondColonPosition + 1); //Everything past the second colon
-                    string channel = split[2].TrimStart('#');
+                    string channel = split[2];
 
                     await OnMessage.Invoke(this, new TwitchMessageEventArgs
                     {
                         Message = message,
                         User = _settings.Credentials.Username,
-                        Sender = username
+                        Sender = username,
+                        Channel = channel
                     });
                 }
             }
